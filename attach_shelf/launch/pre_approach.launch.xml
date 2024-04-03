@@ -1,0 +1,9 @@
+<launch>
+    <!-- Arguments -->
+    <arg name="obstacle" default="0.3"/>
+
+    <!-- Pre-Approach Node -->
+    <node pkg="attach_shelf" exec="pre_approach" name="pre_approach">
+        <param name="obstacle" value="$(var obstacle)"/>
+    </node>
+</launch>
