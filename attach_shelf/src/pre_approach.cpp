@@ -34,7 +34,6 @@ public:
         _publisher = this->create_publisher<Twist>("/robot/cmd_vel", 1);
         // Logic for rotation
         _enable_rotation = false;
-        _enable_traslation = true;
         _total_rotation = 0;
         RCLCPP_INFO(this->get_logger(), "Starting forward motion.");
     }
@@ -48,7 +47,6 @@ private:
     float _last_rotation;
     float _total_rotation;
     bool _enable_rotation;
-    bool _enable_traslation;
 
     // Methods
     void get_params() {
@@ -56,22 +54,19 @@ private:
         _degrees = this->get_parameter("degrees").get_parameter_value().get<int>() * M_PI / 180;
     }
     void laser_callback(const LaserScan::SharedPtr msg) {
-        if (_enable_traslation) {
-            Twist vel_msg;
-            float front_reading = msg->ranges[540];
-            RCLCPP_DEBUG(this->get_logger(), "Front reading: %.2f.", front_reading);
-            if (front_reading > _obstacle) {
-                vel_msg.linear.x = std::min(front_reading, float(1.0));
-            } 
-            else {
-                vel_msg.linear.x = 0.0;
-                RCLCPP_INFO(this->get_logger(), "Starting rotation.");
-                _laser_subscription = nullptr;
-                _enable_rotation = true;
-                _enable_traslation = false;            
-            }
-            _publisher->publish(vel_msg);
+        Twist vel_msg;
+        float front_reading = msg->ranges[540];
+        RCLCPP_DEBUG(this->get_logger(), "Front reading: %.2f.", front_reading);
+        if (front_reading > _obstacle) {
+            vel_msg.linear.x = std::min(front_reading, float(1.0));
+        } 
+        else {
+            vel_msg.linear.x = 0.0;
+            RCLCPP_INFO(this->get_logger(), "Starting rotation.");
+            _laser_subscription = nullptr;
+            _enable_rotation = true;         
         }
+        _publisher->publish(vel_msg);
         
     }
     void odometry_callback(const Odometry::SharedPtr msg) {
@@ -91,6 +86,9 @@ private:
                 RCLCPP_INFO(this->get_logger(), "Rotation finished.");
                 _odomery_subscription = nullptr;
                 vel_msg.angular.z = 0.0;
+                _publisher->publish(vel_msg);
+                RCLCPP_INFO(this->get_logger(), "Shutting down the node.");
+                rclcpp::shutdown();
             }
             _publisher->publish(vel_msg);
         }
