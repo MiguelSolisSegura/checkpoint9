@@ -7,6 +7,9 @@
 #include <functional>
 #include <memory>
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include <utility>
+#include <vector>
+
 
 using GoToLoading = attach_shelf::srv::GoToLoading;
 using LaserScan = sensor_msgs::msg::LaserScan;
@@ -29,6 +32,7 @@ private:
     rclcpp::Service<GoToLoading>::SharedPtr _service;
     rclcpp::Subscription<LaserScan>::SharedPtr _laser_subscription;
     int _num_legs = 0;
+    std::vector<std::pair<int, float>> _leg_data;
     // Methods
     void handle_service(const std::shared_ptr<GoToLoading::Request> request, std::shared_ptr<GoToLoading::Response> response) {
         if (request->attach_to_shelf) {
@@ -38,10 +42,14 @@ private:
             RCLCPP_INFO(this->get_logger(), "FALSE request");
         }
         RCLCPP_INFO(this->get_logger(), "Legs detected: %i.", _num_legs);
+        if (_num_legs == 2) {
+
+        }
         response->complete = _num_legs == 2 ? true : false;
     }
     void laser_callback(const LaserScan::SharedPtr msg) {
         int legs = 0;
+        _leg_data.clear();
         bool leg_flag = false;
         int leg_start;
         for (int i = 0; i < int(msg->intensities.size()); i++) {
@@ -58,6 +66,7 @@ private:
                     int leg_center = (leg_start + i) / 2;
                     RCLCPP_DEBUG(this->get_logger(), "Leg center at: %i.", leg_center);
                     legs += 1;
+                    _leg_data.push_back({leg_center, msg->ranges[leg_center]});
                 }
             }
         }
