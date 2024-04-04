@@ -12,6 +12,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(attach_shelf REQUIRED)
 
 
 if(BUILD_TESTING)
@@ -37,8 +38,16 @@ ament_target_dependencies(pre_approach
   nav_msgs
 )
 
+add_executable(approach_service_server src/approach_service_server.cpp)
+ament_target_dependencies(approach_service_server
+  rclcpp
+  sensor_msgs
+  attach_shelf
+)
+
 install(TARGETS
   pre_approach
+  approach_service_server
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

@@ -11,7 +11,14 @@ def generate_launch_description():
     # Main package
     pkg = get_package_share_directory('attach_shelf')
 
-    # RVIZ Configuration
+    # Service configuration
+    service_server = Node(
+            package='attach_shelf',
+            executable='approach_service_server',
+            output='screen',
+            name='approach_service_server')
+
+    # RVIZ configuration
     rviz_config_dir = os.path.join(pkg, 'rviz', 'config.rviz')
 
     rviz_node = Node(
@@ -23,5 +30,6 @@ def generate_launch_description():
             arguments=['-d', rviz_config_dir])
 
     return LaunchDescription([
-        rviz_node
+        rviz_node,
+        service_server
     ])
