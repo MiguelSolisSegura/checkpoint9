@@ -13,6 +13,11 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(attach_shelf REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+
+
 
 
 if(BUILD_TESTING)
@@ -30,6 +35,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GoToLoading.srv"
 )
 
+# Pre-Approach
 add_executable(pre_approach src/pre_approach.cpp)
 ament_target_dependencies(pre_approach
   rclcpp
@@ -38,11 +44,16 @@ ament_target_dependencies(pre_approach
   nav_msgs
 )
 
+# Approach Service
 add_executable(approach_service_server src/approach_service_server.cpp)
 ament_target_dependencies(approach_service_server
   rclcpp
   sensor_msgs
   attach_shelf
+  geometry_msgs
+  tf2_ros
+  tf2
+  tf2_geometry_msgs
 )
 
 install(TARGETS
