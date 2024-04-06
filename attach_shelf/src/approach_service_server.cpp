@@ -4,6 +4,7 @@
 #include <string>
 #include "attach_shelf/srv/go_to_loading.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp/timer.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include <vector>
 #include <cmath>
@@ -17,10 +18,11 @@
 #include "tf2/transform_datatypes.h"
 #include "tf2_ros/static_transform_broadcaster.h"
 
-
 using GoToLoading = attach_shelf::srv::GoToLoading;
 using LaserScan = sensor_msgs::msg::LaserScan;
+using Twist = geometry_msgs::msg::Twist;
 using namespace std::placeholders;
+using namespace std::chrono_literals;
 
 class ApproachShelf : public rclcpp::Node {
 public:
@@ -37,6 +39,8 @@ public:
         _tf_listener = std::make_shared<tf2_ros::TransformListener>(*_tf_buffer);
         // Intizalize static transform broadcaster
         _tf_static_broadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+        // Create a publisher for Twist messages
+        _publisher = this->create_publisher<Twist>("/robot/cmd_vel", 1);
         // Inform server creation
         RCLCPP_INFO(this->get_logger(), "Service server started.");
     }
@@ -44,6 +48,7 @@ private:
     // General attributes
     rclcpp::Service<GoToLoading>::SharedPtr _service;
     rclcpp::Subscription<LaserScan>::SharedPtr _laser_subscription;
+    rclcpp::Publisher<Twist>::SharedPtr _publisher;
 
     // Scanning attributes
     int _num_legs = 0;
@@ -55,6 +60,10 @@ private:
     std::unique_ptr<tf2_ros::Buffer> _tf_buffer;
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> _tf_static_broadcaster;
 
+    // Final approach attributes
+    rclcpp::TimerBase::SharedPtr _approach_timer;
+    bool cart_flag = false;
+
     // Methods
     void handle_service(const std::shared_ptr<GoToLoading::Request> request, std::shared_ptr<GoToLoading::Response> response) {
         if (request->attach_to_shelf) {
@@ -65,63 +74,12 @@ private:
         }
         RCLCPP_INFO(this->get_logger(), "Legs detected: %i.", _num_legs);
         if (_num_legs == 2) {
-            // A: Robot to left leg
-            float a = _leg_data[0].second;
-            // B: Robot to right leg
-            float b = _leg_data[1].second;
-            // Theta: Angle between legs
-            float theta = 2 * M_PI * std::abs(_leg_data[0].first - _leg_data[1].first) / _total_readings;
-            // C: Right to left leg (Law of Cosines)
-            float c = std::sqrt(a*a + b*b - 2*a*b * std::cos(theta));
-            // D: Distance from robot to the middle of C (Apollonius Theorem)
-            float d = 0.5 * std::sqrt(2*(a*a + b*b) - c*c);
-            // Alpha: Angle for vertex BC (Law of Sines)
-            float alpha = std::asin(a * std::sin(theta) / c);
-            // Beta: Angle for vertex BD (Law of Sines)
-            float beta = std::asin((c/2) * std::sin(alpha) / d);
-            // X: Coordinate x from laser link
-            float x = d * std::sin(alpha + beta);
-            // Y: Coordinate y from laser link
-            float y = d * std::cos(alpha + beta);
-
-
-            RCLCPP_INFO(this->get_logger(), "X coordinate: %.2f.", x);
-            RCLCPP_INFO(this->get_logger(), "Y coordinate: %.2f.", y);
-
-            // Transform coordinates from laser to odom
-            std::string child_frame = "robot_front_laser_link";
-            std::string parent_fame = "robot_odom";
-            geometry_msgs::msg::TransformStamped t;
-            // Look up for the transformation between frames
-            try {
-                auto tf_time = tf2::TimePointZero;
-                t = _tf_buffer->lookupTransform(parent_fame, child_frame, tf_time);
-                // Create a PointStamped for the point (x, y)
-                geometry_msgs::msg::PointStamped laser_point;
-                laser_point.point.x = x;
-                laser_point.point.y = y;
-                laser_point.header.frame_id = child_frame;
-                laser_point.header.stamp = t.header.stamp;
-                // Transform the point from laser_link to odom
-                geometry_msgs::msg::PointStamped odom_point;
-                tf2::doTransform(laser_point, odom_point, t);
-                // Now odom_point contains the (x, y) coordinates in the "odom" frame
-                RCLCPP_INFO(this->get_logger(), "Transformed X coordinate in odom: %.2f.", odom_point.point.x);
-                RCLCPP_INFO(this->get_logger(), "Transformed Y coordinate in odom: %.2f.", odom_point.point.y);
-                RCLCPP_INFO(this->get_logger(), "Transformed Z coordinate in odom: %.2f.", odom_point.point.z);
-                // Create new frame
-                geometry_msgs::msg::TransformStamped cart_frame;
-                cart_frame = t;
-                cart_frame.child_frame_id = "cart_frame";
-                cart_frame.transform.translation.x = odom_point.point.x;
-                cart_frame.transform.translation.y = odom_point.point.y;
-                _tf_static_broadcaster->sendTransform(cart_frame);
-            } 
-            catch (const tf2::TransformException & ex) {
-                RCLCPP_INFO(this->get_logger(), "Could not transform from robot_front_laser_link to robot_odom");
-                RCLCPP_INFO(this->get_logger(), "%s", ex.what());
-            return;
-            }
+            // Publish cart frame
+            RCLCPP_INFO(this->get_logger(), "Publishing cart frame");
+            this->publish_cart_frame();
+            // Initialize the final approach timer
+            RCLCPP_INFO(this->get_logger(), "Approaching cart.");
+            _approach_timer = this->create_wall_timer(100ms, std::bind(&ApproachShelf::approach_cart, this));
         }
         response->complete = _num_legs == 2 ? true : false;
     }
@@ -151,6 +109,94 @@ private:
             }
         }
         _num_legs = legs;
+    }
+
+    void publish_cart_frame() {
+        // A: Robot to left leg
+        float a = _leg_data[0].second;
+        // B: Robot to right leg
+        float b = _leg_data[1].second;
+        // Theta: Angle between legs
+        float theta = 2 * M_PI * std::abs(_leg_data[0].first - _leg_data[1].first) / _total_readings;
+        // C: Right to left leg (Law of Cosines)
+        float c = std::sqrt(a*a + b*b - 2*a*b * std::cos(theta));
+        // D: Distance from robot to the middle of C (Apollonius Theorem)
+        float d = 0.5 * std::sqrt(2*(a*a + b*b) - c*c);
+        // Alpha: Angle for vertex BC (Law of Sines)
+        float alpha = std::asin(a * std::sin(theta) / c);
+        // Beta: Angle for vertex BD (Law of Sines)
+        float beta = std::asin((c/2) * std::sin(alpha) / d);
+        // X: Coordinate x from laser link
+        float x = d * std::sin(alpha + beta);
+        // Y: Coordinate y from laser link
+        float y = d * std::cos(alpha + beta);
+
+        RCLCPP_INFO(this->get_logger(), "X coordinate from laser: %.2f.", x);
+        RCLCPP_INFO(this->get_logger(), "Y coordinate from laser: %.2f.", y);
+
+        // Transform coordinates from laser to odom
+        std::string child_frame = "robot_front_laser_link";
+        std::string parent_fame = "robot_odom";
+        geometry_msgs::msg::TransformStamped t;
+        // Look up for the transformation between odom and laser frames
+        try {
+            auto tf_time = tf2::TimePointZero;
+            t = _tf_buffer->lookupTransform(parent_fame, child_frame, tf_time);
+            // Create a PointStamped for the point (x, y)
+            geometry_msgs::msg::PointStamped laser_point;
+            laser_point.point.x = x;
+            laser_point.point.y = y;
+            laser_point.header.frame_id = child_frame;
+            laser_point.header.stamp = t.header.stamp;
+            // Transform the point from laser_link to odom
+            geometry_msgs::msg::PointStamped odom_point;
+            tf2::doTransform(laser_point, odom_point, t);
+            // Now odom_point contains the (x, y) coordinates in the "odom" frame
+            RCLCPP_INFO(this->get_logger(), "Transformed X coordinate in odom: %.2f.", odom_point.point.x);
+            RCLCPP_INFO(this->get_logger(), "Transformed Y coordinate in odom: %.2f.", odom_point.point.y);
+            RCLCPP_INFO(this->get_logger(), "Transformed Z coordinate in odom: %.2f.", odom_point.point.z);
+            // Create new frame
+            geometry_msgs::msg::TransformStamped cart_frame;
+            cart_frame = t;
+            cart_frame.child_frame_id = "cart_frame";
+            cart_frame.transform.translation.x = odom_point.point.x;
+            cart_frame.transform.translation.y = odom_point.point.y;
+            // Broadcast the new frame
+            _tf_static_broadcaster->sendTransform(cart_frame);
+        }
+        catch (const tf2::TransformException & ex) {
+            RCLCPP_INFO(this->get_logger(), "Could not transform from robot_front_laser_link to robot_odom");
+            RCLCPP_INFO(this->get_logger(), "%s", ex.what());
+        }
+    }
+
+    void approach_cart() {
+        geometry_msgs::msg::TransformStamped t;
+        t = _tf_buffer->lookupTransform("robot_base_link", "cart_frame", tf2::TimePointZero);
+        // Compute velocities
+        auto x = t.transform.translation.x + 0.5;
+        auto y = t.transform.translation.y;
+  
+        float error_distance = std::sqrt(x*x + y*y);
+        float error_yaw = std::atan2(y, x);
+        RCLCPP_DEBUG(this->get_logger(), "Error distance: %.4f", error_distance);
+        RCLCPP_DEBUG(this->get_logger(), "Error yaw: %.4f", error_yaw);
+        Twist vel_msg;
+        if (error_distance > 0.01) {
+            vel_msg.angular.z = -0.5 * error_yaw;  
+            vel_msg.linear.x = std::min(1.0 * error_distance, 0.75);
+            RCLCPP_DEBUG(this->get_logger(), "Z angular: %.3f", vel_msg.angular.z);
+            RCLCPP_DEBUG(this->get_logger(), "X linear: %.3f", vel_msg.linear.x);
+        }
+        else {
+            vel_msg.angular.z = 0;
+            vel_msg.linear.x = 0;
+            RCLCPP_INFO(this->get_logger(), "Final approach completed.");
+            _approach_timer->cancel(); 
+        }
+        // Pubish velocity
+        _publisher->publish(vel_msg);
+
     }
 };
 
