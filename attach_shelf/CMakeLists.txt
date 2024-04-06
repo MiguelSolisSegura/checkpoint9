@@ -16,6 +16,7 @@ find_package(attach_shelf REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 
 
@@ -44,6 +45,16 @@ ament_target_dependencies(pre_approach
   nav_msgs
 )
 
+# Pre-Approach V2
+add_executable(pre_approach_v2 src/pre_approach_v2.cpp)
+ament_target_dependencies(pre_approach_v2
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  nav_msgs
+)
+
+
 # Approach Service
 add_executable(approach_service_server src/approach_service_server.cpp)
 ament_target_dependencies(approach_service_server
@@ -54,10 +65,12 @@ ament_target_dependencies(approach_service_server
   tf2_ros
   tf2
   tf2_geometry_msgs
+  std_msgs
 )
 
 install(TARGETS
   pre_approach
+  pre_approach_v2
   approach_service_server
   DESTINATION lib/${PROJECT_NAME})
 

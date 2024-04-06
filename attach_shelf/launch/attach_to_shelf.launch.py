@@ -11,6 +11,24 @@ def generate_launch_description():
     # Main package
     pkg = get_package_share_directory('attach_shelf')
 
+    # Main node configuration
+    declare_obstacle = DeclareLaunchArgument(
+        'obstacle', default_value='0.3', description='Obstacle distance threshold')
+    declare_degrees = DeclareLaunchArgument(
+        'degrees', default_value='-90', description='Rotation after reaching obstacle')
+    declare_approach = DeclareLaunchArgument(
+        'final_approach', default_value='false', description='Rotation after reaching obstacle')
+
+    main_node = Node(
+            package='attach_shelf',
+            executable='pre_approach_v2',
+            output='screen',
+            name='pre_approach_v2',
+            parameters=[{
+                'obstacle': LaunchConfiguration('obstacle'),
+                'degrees': LaunchConfiguration('degrees'),
+                'final_approach': LaunchConfiguration('final_approach')}])
+
     # Service configuration
     service_server = Node(
             package='attach_shelf',
@@ -30,6 +48,10 @@ def generate_launch_description():
             arguments=['-d', rviz_config_dir])
 
     return LaunchDescription([
+        declare_obstacle,
+        declare_degrees,
+        declare_approach,
         rviz_node,
-        service_server
+        service_server,
+        main_node
     ])

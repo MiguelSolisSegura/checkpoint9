@@ -17,6 +17,7 @@ public:
         // Declare parameters
         this->declare_parameter("obstacle", 0.3);
         this->declare_parameter("degrees", 90);
+        this->declare_parameter("final_approach", false);
         // Get parameter values from launch file
         this->get_params();
         // Create a subscription for LaserScan and Odometry messages
@@ -38,6 +39,7 @@ private:
     rclcpp::Publisher<Twist>::SharedPtr _publisher;
     float _obstacle;
     float _degrees;
+    bool _final_approach;
     float _last_rotation;
     float _total_rotation;
     bool _enable_rotation;
@@ -46,6 +48,7 @@ private:
     void get_params() {
         _obstacle = this->get_parameter("obstacle").get_parameter_value().get<float>();
         _degrees = this->get_parameter("degrees").get_parameter_value().get<int>() * M_PI / 180;
+        _final_approach = this->get_parameter("final_approach").get_parameter_value().get<bool>();
     }
     void laser_callback(const LaserScan::SharedPtr msg) {
         Twist vel_msg;

@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include "attach_shelf/srv/go_to_loading.hpp"
+#include "rclcpp/logging.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/timer.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
@@ -10,6 +11,7 @@
 #include <cmath>
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "std_msgs/msg/detail/empty__struct.hpp"
 #include "tf2/exceptions.h"
 #include "tf2/time.h"
 #include "tf2_ros/transform_listener.h"
@@ -17,10 +19,13 @@
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "tf2/transform_datatypes.h"
 #include "tf2_ros/static_transform_broadcaster.h"
+#include "std_msgs/msg/empty.hpp"
+#include <future>
 
 using GoToLoading = attach_shelf::srv::GoToLoading;
 using LaserScan = sensor_msgs::msg::LaserScan;
 using Twist = geometry_msgs::msg::Twist;
+using Empty = std_msgs::msg::Empty;
 using namespace std::placeholders;
 using namespace std::chrono_literals;
 
@@ -39,8 +44,9 @@ public:
         _tf_listener = std::make_shared<tf2_ros::TransformListener>(*_tf_buffer);
         // Intizalize static transform broadcaster
         _tf_static_broadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
-        // Create a publisher for Twist messages
+        // Create a publisher for Twist anc Empty messages
         _publisher = this->create_publisher<Twist>("/robot/cmd_vel", 1);
+        _elevator_publisher = this->create_publisher<Empty>("/elevator_up", 1);
         // Inform server creation
         RCLCPP_INFO(this->get_logger(), "Service server started.");
     }
@@ -49,6 +55,7 @@ private:
     rclcpp::Service<GoToLoading>::SharedPtr _service;
     rclcpp::Subscription<LaserScan>::SharedPtr _laser_subscription;
     rclcpp::Publisher<Twist>::SharedPtr _publisher;
+    rclcpp::Publisher<Empty>::SharedPtr _elevator_publisher;
 
     // Scanning attributes
     int _num_legs = 0;
@@ -62,26 +69,34 @@ private:
 
     // Final approach attributes
     rclcpp::TimerBase::SharedPtr _approach_timer;
-    bool cart_flag = false;
 
     // Methods
     void handle_service(const std::shared_ptr<GoToLoading::Request> request, std::shared_ptr<GoToLoading::Response> response) {
-        if (request->attach_to_shelf) {
-            RCLCPP_INFO(this->get_logger(), "TRUE request");
-        }
-        else {
-            RCLCPP_INFO(this->get_logger(), "FALSE request");
-        }
+        // Handle request
         RCLCPP_INFO(this->get_logger(), "Legs detected: %i.", _num_legs);
-        if (_num_legs == 2) {
+        if (_num_legs == 2 && request->attach_to_shelf) {
             // Publish cart frame
             RCLCPP_INFO(this->get_logger(), "Publishing cart frame");
             this->publish_cart_frame();
-            // Initialize the final approach timer
-            RCLCPP_INFO(this->get_logger(), "Approaching cart.");
+            // Handle approach
+            RCLCPP_INFO(this->get_logger(), "True request");
+            RCLCPP_INFO(this->get_logger(), "Approaching to cart.");    
             _approach_timer = this->create_wall_timer(100ms, std::bind(&ApproachShelf::approach_cart, this));
+            response->complete = true;
         }
-        response->complete = _num_legs == 2 ? true : false;
+        else if (_num_legs == 2 && !request->attach_to_shelf){
+            // Publish cart frame
+            RCLCPP_INFO(this->get_logger(), "Publishing cart frame");
+            this->publish_cart_frame();
+            // Handle false request
+            RCLCPP_INFO(this->get_logger(), "False request.");
+            RCLCPP_WARN(this->get_logger(), "The final approach is ommited.");
+            response->complete = false;
+        }
+        else{
+            RCLCPP_ERROR(this->get_logger(), "Not enough legs, returning false.");
+            response->complete = false;
+        }   
     }
 
     void laser_callback(const LaserScan::SharedPtr msg) {
@@ -131,8 +146,8 @@ private:
         // Y: Coordinate y from laser link
         float y = d * std::cos(alpha + beta);
 
-        RCLCPP_INFO(this->get_logger(), "X coordinate from laser: %.2f.", x);
-        RCLCPP_INFO(this->get_logger(), "Y coordinate from laser: %.2f.", y);
+        RCLCPP_DEBUG(this->get_logger(), "X coordinate from laser: %.2f.", x);
+        RCLCPP_DEBUG(this->get_logger(), "Y coordinate from laser: %.2f.", y);
 
         // Transform coordinates from laser to odom
         std::string child_frame = "robot_front_laser_link";
@@ -152,9 +167,9 @@ private:
             geometry_msgs::msg::PointStamped odom_point;
             tf2::doTransform(laser_point, odom_point, t);
             // Now odom_point contains the (x, y) coordinates in the "odom" frame
-            RCLCPP_INFO(this->get_logger(), "Transformed X coordinate in odom: %.2f.", odom_point.point.x);
-            RCLCPP_INFO(this->get_logger(), "Transformed Y coordinate in odom: %.2f.", odom_point.point.y);
-            RCLCPP_INFO(this->get_logger(), "Transformed Z coordinate in odom: %.2f.", odom_point.point.z);
+            RCLCPP_DEBUG(this->get_logger(), "Transformed X coordinate in odom: %.2f.", odom_point.point.x);
+            RCLCPP_DEBUG(this->get_logger(), "Transformed Y coordinate in odom: %.2f.", odom_point.point.y);
+            RCLCPP_DEBUG(this->get_logger(), "Transformed Z coordinate in odom: %.2f.", odom_point.point.z);
             // Create new frame
             geometry_msgs::msg::TransformStamped cart_frame;
             cart_frame = t;
@@ -192,11 +207,13 @@ private:
             vel_msg.angular.z = 0;
             vel_msg.linear.x = 0;
             RCLCPP_INFO(this->get_logger(), "Final approach completed.");
-            _approach_timer->cancel(); 
+            _approach_timer->cancel();
+            RCLCPP_INFO(this->get_logger(), "Lifting the shelf.");
+            Empty msg;
+            _elevator_publisher->publish(msg);
         }
         // Pubish velocity
         _publisher->publish(vel_msg);
-
     }
 };
 
