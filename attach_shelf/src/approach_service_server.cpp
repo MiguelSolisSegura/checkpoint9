@@ -211,6 +211,7 @@ private:
             RCLCPP_INFO(this->get_logger(), "Lifting the shelf.");
             Empty msg;
             _elevator_publisher->publish(msg);
+            RCLCPP_INFO(this->get_logger(), "Process finished.");
         }
         // Pubish velocity
         _publisher->publish(vel_msg);

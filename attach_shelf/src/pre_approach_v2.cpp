@@ -1,14 +1,20 @@
+#include "rclcpp/client.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include <algorithm>
 #include "nav_msgs/msg/odometry.hpp"
 #include <cmath>
+#include <functional>
+#include <memory>
+#include "attach_shelf/srv/go_to_loading.hpp"
 
 using LaserScan = sensor_msgs::msg::LaserScan;
 using Twist = geometry_msgs::msg::Twist;
 using Odometry = nav_msgs::msg::Odometry;
+using GoToLoading = attach_shelf::srv::GoToLoading;
 using namespace std::placeholders;
+using namespace std::chrono_literals;
 
 class PreApproach : public rclcpp::Node {
 public:
@@ -30,6 +36,12 @@ public:
         // Logic for rotation
         _enable_rotation = false;
         _total_rotation = 0;
+        // Service client
+        _client = this->create_client<GoToLoading>("approach_shelf");
+        while (!_client->wait_for_service(1s)) {
+            RCLCPP_INFO(this->get_logger(), "Waiting for service /approach_shelf to become available.");
+        }
+
         RCLCPP_INFO(this->get_logger(), "Starting forward motion.");
     }
 private:
@@ -37,6 +49,7 @@ private:
     rclcpp::Subscription<LaserScan>::SharedPtr _laser_subscription;
     rclcpp::Subscription<Odometry>::SharedPtr _odomery_subscription;
     rclcpp::Publisher<Twist>::SharedPtr _publisher;
+    rclcpp::Client<GoToLoading>::SharedPtr _client;
     float _obstacle;
     float _degrees;
     bool _final_approach;
@@ -83,12 +96,25 @@ private:
                 RCLCPP_INFO(this->get_logger(), "Rotation finished.");
                 _odomery_subscription = nullptr;
                 vel_msg.angular.z = 0.0;
-                _publisher->publish(vel_msg);
-                RCLCPP_INFO(this->get_logger(), "Shutting down the node.");
-                rclcpp::shutdown();
+                auto request = std::make_shared<GoToLoading::Request>();
+                request->attach_to_shelf = _final_approach;
+                auto callable_response = std::bind(&PreApproach::handle_response, this, _1);
+                RCLCPP_INFO(this->get_logger(), "Sending request to service server.");
+                _client->async_send_request(request, callable_response);
+                
             }
             _publisher->publish(vel_msg);
         }
+    }
+    void handle_response(const rclcpp::Client<GoToLoading>::SharedFuture future) {
+        auto response = future.get();
+        if (response->complete) {
+            RCLCPP_INFO(this->get_logger(), "Two legs detected, final approach performed.");
+        }
+        else {
+            RCLCPP_WARN(this->get_logger(), "Final approach not performed.");
+        }
+        rclcpp::shutdown();
     }
 };
 

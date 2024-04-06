@@ -52,6 +52,7 @@ ament_target_dependencies(pre_approach_v2
   sensor_msgs
   geometry_msgs
   nav_msgs
+  attach_shelf
 )
 
 
