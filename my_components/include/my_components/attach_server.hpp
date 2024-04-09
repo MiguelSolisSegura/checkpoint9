@@ -16,21 +16,22 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "std_msgs/msg/detail/empty__struct.hpp"
+#include "std_msgs/msg/detail/string__struct.hpp"
 #include "tf2/exceptions.h"
 #include "tf2/time.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2/transform_datatypes.h"
 #include "tf2_ros/static_transform_broadcaster.h"
-#include "std_msgs/msg/empty.hpp"
+#include "std_msgs/msg/string.hpp"
 #include <future>
 #include "my_components/visibility_control.h"
 
 using GoToLoading = custom_attach_interface::srv::GoToLoading;
 using LaserScan = sensor_msgs::msg::LaserScan;
 using Twist = geometry_msgs::msg::Twist;
-using Empty = std_msgs::msg::Empty;
+using String = std_msgs::msg::String;
 using namespace std::placeholders;
 using namespace std::chrono_literals;
 
@@ -46,7 +47,7 @@ private:
     rclcpp::Service<GoToLoading>::SharedPtr _service;
     rclcpp::Subscription<LaserScan>::SharedPtr _laser_subscription;
     rclcpp::Publisher<Twist>::SharedPtr _publisher;
-    rclcpp::Publisher<Empty>::SharedPtr _elevator_publisher;
+    rclcpp::Publisher<String>::SharedPtr _elevator_publisher;
     // Scanning attributes
     int _num_legs = 0;
     int _total_readings;

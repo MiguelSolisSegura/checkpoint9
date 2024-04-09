@@ -58,8 +58,6 @@ void PreApproach::odometry_callback(const Odometry::SharedPtr msg) {
             _odomery_subscription = nullptr;
             vel_msg.angular.z = 0.0;
             _publisher->publish(vel_msg);
-            RCLCPP_INFO(this->get_logger(), "Shutting down the node.");
-            rclcpp::shutdown();
         }
         _publisher->publish(vel_msg);
     }

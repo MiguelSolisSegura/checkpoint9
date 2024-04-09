@@ -15,8 +15,8 @@ AttachServer::AttachServer(const rclcpp::NodeOptions &options) : Node("approach_
     // Intizalize static transform broadcaster
     _tf_static_broadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
     // Create a publisher for Twist anc Empty messages
-    _publisher = this->create_publisher<Twist>("/robot/cmd_vel", 1);
-    _elevator_publisher = this->create_publisher<Empty>("/elevator_up", 1);
+    _publisher = this->create_publisher<Twist>("/diffbot_base_controller/cmd_vel_unstamped", 1);
+    _elevator_publisher = this->create_publisher<String>("/elevator_up", 1);
     // Inform server creation
     RCLCPP_INFO(this->get_logger(), "Service server started.");
 }
@@ -147,9 +147,9 @@ void AttachServer::approach_cart() {
     RCLCPP_DEBUG(this->get_logger(), "Error distance: %.4f", error_distance);
     RCLCPP_DEBUG(this->get_logger(), "Error yaw: %.4f", error_yaw);
     Twist vel_msg;
-    if (error_distance > 0.01) {
+    if (error_distance > 0.03) {
         vel_msg.angular.z = -0.5 * error_yaw;  
-        vel_msg.linear.x = std::min(1.0 * error_distance, 0.75);
+        vel_msg.linear.x = std::min(1.0 * error_distance, 1.0);
         RCLCPP_DEBUG(this->get_logger(), "Z angular: %.3f", vel_msg.angular.z);
         RCLCPP_DEBUG(this->get_logger(), "X linear: %.3f", vel_msg.linear.x);
     }
@@ -159,8 +159,9 @@ void AttachServer::approach_cart() {
         RCLCPP_INFO(this->get_logger(), "Final approach completed.");
         _approach_timer->cancel();
         RCLCPP_INFO(this->get_logger(), "Lifting the shelf.");
-        Empty msg;
-        _elevator_publisher->publish(msg);
+        RCLCPP_WARN(this->get_logger(), "The elevator is not working properly in simulation, the message to /elevator_up is omitted.");
+        // String msg;
+        // _elevator_publisher->publish(msg);
         RCLCPP_INFO(this->get_logger(), "Process finished.");
     }
     // Pubish velocity
