@@ -12,7 +12,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
-find_package(attach_shelf REQUIRED)
+find_package(custom_attach_interface REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -52,7 +52,7 @@ ament_target_dependencies(pre_approach_v2
   sensor_msgs
   geometry_msgs
   nav_msgs
-  attach_shelf
+  custom_attach_interface
 )
 
 
@@ -61,7 +61,7 @@ add_executable(approach_service_server src/approach_service_server.cpp)
 ament_target_dependencies(approach_service_server
   rclcpp
   sensor_msgs
-  attach_shelf
+  custom_attach_interface
   geometry_msgs
   tf2_ros
   tf2

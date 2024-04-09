@@ -2,7 +2,7 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include "attach_shelf/srv/go_to_loading.hpp"
+#include "custom_attach_interface/srv/go_to_loading.hpp"
 #include "rclcpp/logging.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/timer.hpp"
@@ -22,7 +22,7 @@
 #include "std_msgs/msg/empty.hpp"
 #include <future>
 
-using GoToLoading = attach_shelf::srv::GoToLoading;
+using GoToLoading = custom_attach_interface::srv::GoToLoading;
 using LaserScan = sensor_msgs::msg::LaserScan;
 using Twist = geometry_msgs::msg::Twist;
 using Empty = std_msgs::msg::Empty;

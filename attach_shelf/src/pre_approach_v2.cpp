@@ -7,12 +7,12 @@
 #include <cmath>
 #include <functional>
 #include <memory>
-#include "attach_shelf/srv/go_to_loading.hpp"
+#include "custom_attach_interface/srv/go_to_loading.hpp"
 
 using LaserScan = sensor_msgs::msg::LaserScan;
 using Twist = geometry_msgs::msg::Twist;
 using Odometry = nav_msgs::msg::Odometry;
-using GoToLoading = attach_shelf::srv::GoToLoading;
+using GoToLoading = custom_attach_interface::srv::GoToLoading;
 using namespace std::placeholders;
 using namespace std::chrono_literals;
 
