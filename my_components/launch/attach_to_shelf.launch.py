@@ -4,27 +4,34 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 
 def generate_launch_description():
     # Main package
     pkg = get_package_share_directory('my_components')
 
-    # Manual composition node configuration
-    declare_obstacle = DeclareLaunchArgument(
-        'obstacle', default_value='0.3', description='Obstacle distance threshold')
-    declare_degrees = DeclareLaunchArgument(
-        'degrees', default_value='-90', description='Rotation after reaching obstacle')
-    #declare_approach = DeclareLaunchArgument(
-    #    'final_approach', default_value='false', description='Rotation after reaching obstacle')
+    # Pre-approach node configuration
+    container = ComposableNodeContainer(
+            name='my_container',
+            namespace='',
+            package='rclcpp_components',
+            executable='component_container',
+            composable_node_descriptions=[
+                ComposableNode(
+                    package='my_components',
+                    plugin='my_components::PreApproach',
+                    name='pre_approach'),
+            ],
+            output='screen',
+    )
 
+    # Manual composition node configuration
     manual_node = Node(
             package='my_components',
             executable='manual_composition',
             output='screen',
-            name='manual_composition',
-            parameters=[{
-                'obstacle': LaunchConfiguration('obstacle'),
-                'degrees': LaunchConfiguration('degrees')}])
+            name='manual_composition')
 
     # RVIZ configuration
     rviz_config_dir = os.path.join(pkg, 'rviz', 'config.rviz')
@@ -37,9 +44,7 @@ def generate_launch_description():
             arguments=['-d', rviz_config_dir])
 
     return LaunchDescription([
-        declare_obstacle,
-        declare_degrees,
-        #declare_approach,
+        container,
         rviz_node,
         manual_node
     ])

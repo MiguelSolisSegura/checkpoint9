@@ -68,13 +68,25 @@ ament_target_dependencies(attach_server
 rclcpp_components_register_nodes(attach_server "my_components::AttachServer")
 set(node_plugins "${node_plugins}my_components::AttachServer;$<TARGET_FILE:attach_server>\n")
 
+# Attach Client
+add_library(attach_client SHARED src/attach_client.cpp)
+
+target_compile_definitions(attach_client PRIVATE "COMPOSITION_BUILDING_DLL")
+
+ament_target_dependencies(attach_client
+  "rclcpp"
+  "rclcpp_components"
+  "custom_attach_interface")
+
+rclcpp_components_register_nodes(attach_client "my_components::AttachClient")
+set(node_plugins "${node_plugins}my_components::AttachClient;$<TARGET_FILE:attach_client>\n")
+
 # Compile Time Composition
 add_executable(manual_composition
   src/manual_composition.cpp)
 
 target_link_libraries(manual_composition
-  attach_server
-  pre_approach)
+  attach_server)
 
 ament_target_dependencies(manual_composition
   "rclcpp")
@@ -83,6 +95,7 @@ ament_target_dependencies(manual_composition
 install(TARGETS
   pre_approach
   attach_server
+  attach_client
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)

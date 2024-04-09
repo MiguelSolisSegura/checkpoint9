@@ -1,4 +1,3 @@
-#include "my_components/pre_approach.hpp"
 #include "my_components/attach_server.hpp"
 #include "rclcpp/executors/single_threaded_executor.hpp"
 #include "rclcpp/node_options.hpp"
@@ -14,8 +13,6 @@ int main(int argc, char ** argv) {
     rclcpp::executors::SingleThreadedExecutor exec;
     rclcpp::NodeOptions options;
 
-    auto pre_approach_node = std::make_shared<my_components::PreApproach>(options);
-    exec.add_node(pre_approach_node);
     auto attach_server_node = std::make_shared<my_components::AttachServer>(options);
     exec.add_node(attach_server_node);
 
