@@ -4,7 +4,7 @@ This repository demonstrates the evolution of a robotics project using ROS2, foc
 
 A more comprehensive explanation of this project can be found in:
 - [https://miguelsolissegura.com/project/shelf-attachment](https://miguelsolissegura.com/project/shelf-attachment)
-- [https://miguelsolissegura.com/project/shelf-attachment](https://miguelsolissegura.com/project/ros2-components)
+- [https://miguelsolissegura.com/project/ros2-components](https://miguelsolissegura.com/project/ros2-components)
 
 ## Prerequisites
 
