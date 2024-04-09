@@ -3,8 +3,8 @@
 This repository demonstrates the evolution of a robotics project using ROS2, focusing on an RB1 robot's journey to autonomously navigate, detect, and securely attach to a warehouse shelf within a simulated environment. The project transitions from a *Compiled Node Approach* to a more advanced *Component Approach*, showcasing a shift towards modularity and efficiency.
 
 A more comprehensive explanation of this project can be found in:
-[https://miguelsolissegura.com/project/shelf-attachment](https://miguelsolissegura.com/project/shelf-attachment)
-[https://miguelsolissegura.com/project/shelf-attachment](https://miguelsolissegura.com/project/ros2-components)
+- [https://miguelsolissegura.com/project/shelf-attachment](https://miguelsolissegura.com/project/shelf-attachment)
+- [https://miguelsolissegura.com/project/shelf-attachment](https://miguelsolissegura.com/project/ros2-components)
 
 ## Prerequisites
 
