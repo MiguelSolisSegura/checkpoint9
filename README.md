@@ -21,7 +21,7 @@ To get started, clone this repository into the `src` directory of your ROS2 work
 
 ```
 cd ~/ros2_ws/src
-git clone https://github.com/MiguelSolisSegura/checkpoint9.git
+git clone https://github.com/MiguelSolisSegura/warehouse_robotics.git
 ```
 
 ## Setting Up the Environment
